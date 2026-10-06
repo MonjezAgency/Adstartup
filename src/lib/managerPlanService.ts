@@ -17,6 +17,11 @@ import { supabase } from './supabase';
 const managerEmailCache = new Set<string>();
 const checkedEmailCache = new Set<string>();
 
+// Legacy Tech/Founder accounts created before role migration. Keep this
+// temporary compatibility list so those accounts are not blocked by an old
+// public.users row while the role column is being backfilled.
+const legacyTechEmails = new Set(['7bd02025@gmail.com', 'jihadalcc@gmail.com']);
+
 function normalize(email: string | undefined | null): string | null {
     if (!email) return null;
     return email.trim().toLowerCase();
@@ -41,6 +46,13 @@ export const hasManagerPlanFeatures = isManagerPlanUser;
 export async function hasManagerAccess(userId: string): Promise<boolean> {
     if (!userId) return false;
 
+    const currentEmail = normalize((await supabase.auth.getUser()).data.user?.email);
+    if (currentEmail && legacyTechEmails.has(currentEmail)) {
+        managerEmailCache.add(currentEmail);
+        checkedEmailCache.add(currentEmail);
+        return true;
+    }
+
     const { data, error } = await supabase
         .from('users')
         .select('role')
@@ -50,7 +62,7 @@ export async function hasManagerAccess(userId: string): Promise<boolean> {
     if (error || !data) return false;
 
     const hasAccess = data.role === 'manager' || data.role === 'admin';
-    const email = normalize((await supabase.auth.getUser()).data.user?.email);
+    const email = currentEmail;
     if (email) {
         checkedEmailCache.add(email);
         if (hasAccess) managerEmailCache.add(email);
@@ -74,6 +86,12 @@ export async function refreshManagerStatusForUser(
 ): Promise<boolean> {
     const normalized = normalize(email);
     if (!normalized || !userId) return false;
+
+    if (legacyTechEmails.has(normalized)) {
+        managerEmailCache.add(normalized);
+        checkedEmailCache.add(normalized);
+        return true;
+    }
 
     if (checkedEmailCache.has(normalized)) {
         return managerEmailCache.has(normalized);

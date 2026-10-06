@@ -20,6 +20,29 @@ export default function SignIn() {
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
   const [showEmailVerification, setShowEmailVerification] = useState(false);
+  const [resendingConfirmation, setResendingConfirmation] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
+
+  const resendConfirmation = async () => {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setError('Enter your email first, then press Resend confirmation email.');
+      return;
+    }
+
+    setResendingConfirmation(true);
+    setResendMessage('');
+    setError('');
+    const { supabase } = await import('../lib/supabase');
+    const { error: resendError } = await supabase.auth.resend({
+      type: 'signup',
+      email: normalizedEmail,
+      options: { emailRedirectTo: `${window.location.origin}/auth/verified` },
+    });
+    setResendingConfirmation(false);
+    if (resendError) setError(resendError.message);
+    else setResendMessage('A new confirmation link was sent. Check Inbox, Spam, and Promotions.');
+  };
 
   useEffect(() => {
     const message = searchParams.get('message');
@@ -43,7 +66,7 @@ export default function SignIn() {
     setIsLoading(true);
 
     try {
-      const { error: authError } = await signIn(email, password);
+      const { error: authError } = await signIn(email.trim().toLowerCase(), password);
 
       if (authError) {
         setError(authError.message);
@@ -68,7 +91,10 @@ export default function SignIn() {
           .maybeSingle();
 
         // If user has trial and hasn't completed brief, redirect to brief
-        if (userData?.plan_type === 'trial' && !userData?.brief_completed) {
+        // Trial routing applies only to regular client accounts. Managers and
+        // Tech/Founder accounts should go straight to their dashboard.
+        const isTechAccount = user?.email?.toLowerCase() === '7bd02025@gmail.com';
+        if (!isTechAccount && userData?.plan_type === 'trial' && !userData?.brief_completed) {
           navigate('/brief');
           return;
         }
@@ -194,6 +220,7 @@ export default function SignIn() {
                 {error}
               </motion.div>
             )}
+            {resendMessage && <p className="mb-4 text-sm text-green-400">{resendMessage}</p>}
           </AnimatePresence>
 
           <motion.form
@@ -378,6 +405,15 @@ export default function SignIn() {
               </Link>
             </motion.p>
           </motion.form>
+
+          <button
+            type="button"
+            onClick={resendConfirmation}
+            disabled={resendingConfirmation}
+            className="mt-4 w-full text-sm text-red-500 hover:text-red-400 disabled:opacity-50"
+          >
+            {resendingConfirmation ? 'Sending confirmation email...' : 'Resend confirmation email'}
+          </button>
         </motion.div>
       </div>
     </div>

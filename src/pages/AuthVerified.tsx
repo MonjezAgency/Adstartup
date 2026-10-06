@@ -35,6 +35,13 @@ export default function AuthVerified() {
                 if (session?.user && session.user.email_confirmed_at) {
                     console.log('[AuthVerified] ✅ Email confirmed successfully!');
 
+                    // Keep the legacy public.users flag synchronized with
+                    // Supabase Auth so existing accounts can sign in.
+                    await supabase
+                        .from('users')
+                        .update({ verified: true, updated_at: new Date().toISOString() })
+                        .eq('id', session.user.id);
+
                     setStatus('success');
                     setMessage('Email verified successfully!');
 

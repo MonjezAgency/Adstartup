@@ -247,7 +247,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim().toLowerCase(),
         password,
       });
 
@@ -260,14 +260,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .eq('id', data.user.id)
           .maybeSingle();
 
-        if (userData && !userData.verified) {
-          await supabase.auth.signOut();
-          throw new Error('Your email is not verified. Please check your inbox and click the verification link.');
-        }
-
         if (!data.user.email_confirmed_at) {
           await supabase.auth.signOut();
-          throw new Error('Your email is not confirmed. Please check your inbox and click the confirmation link.');
+          throw new Error('Your email is not confirmed yet. Check your inbox, then use Resend confirmation email.');
+        }
+
+        // Supabase Auth is authoritative. Older accounts can still have
+        // users.verified=false after clicking the confirmation link.
+        if (userData && !userData.verified) {
+          await supabase
+            .from('users')
+            .update({ verified: true, updated_at: new Date().toISOString() })
+            .eq('id', data.user.id);
         }
       }
 
@@ -323,11 +327,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         country: !!country
       });
 
-      const emailRedirectTo = `${PRODUCTION_DOMAIN}/auth/verified`;
+      const emailRedirectTo = `${window.location.origin}/auth/verified`;
 
       console.log('[SignUp] Step 1: Creating Supabase Auth user...');
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email,
+        email: email.trim().toLowerCase(),
         password,
         options: {
           emailRedirectTo,

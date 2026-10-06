@@ -3,6 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, CheckCircle, ArrowRight, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 import logoNew from '../assets/logo-new.png';
 
 export default function SignupDone() {
@@ -15,6 +16,23 @@ export default function SignupDone() {
     // Get email from sessionStorage (for regular signup)
     const [email, setEmail] = useState('');
     const [isCheckingAuth, setIsCheckingAuth] = useState(isGoogleSignup);
+    const [resending, setResending] = useState(false);
+    const [resendMessage, setResendMessage] = useState('');
+
+    const resendConfirmation = async () => {
+        if (!email) return;
+        setResending(true);
+        setResendMessage('');
+        const { error } = await supabase.auth.resend({
+            type: 'signup',
+            email: email.trim().toLowerCase(),
+            options: { emailRedirectTo: `${window.location.origin}/auth/verified` },
+        });
+        setResending(false);
+        setResendMessage(error
+            ? error.message
+            : 'A new confirmation link was sent. Check Inbox, Spam, and Promotions.');
+    };
 
     useEffect(() => {
         const storedEmail = sessionStorage.getItem('signupEmail');
@@ -279,6 +297,15 @@ export default function SignupDone() {
                         <p className="text-sm text-gray-500">
                             Didn't receive the email? Check your spam folder or contact support.
                         </p>
+                        <button
+                            type="button"
+                            onClick={resendConfirmation}
+                            disabled={!email || resending}
+                            className="text-sm text-red-500 hover:text-red-400 disabled:opacity-50 font-medium"
+                        >
+                            {resending ? 'Sending confirmation email...' : 'Resend confirmation email'}
+                        </button>
+                        {resendMessage && <p className="text-sm text-gray-400">{resendMessage}</p>}
                     </motion.div>
 
                     {/* Sign In Button */}

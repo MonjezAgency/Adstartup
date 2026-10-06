@@ -5,6 +5,7 @@ import { LogOut, Settings, Home, Copy, Check } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { hasActiveSubscription } from '../lib/subscriptionService';
 import { trialService } from '../lib/trialService';
+import { hasManagerAccess } from '../lib/managerPlanService';
 import logoNew from '../assets/logo-new.png';
 
 export default function Header() {
@@ -41,6 +42,13 @@ export default function Header() {
     }
 
     try {
+      // Founder/manager/admin accounts always have dashboard access, even
+      // when they do not have a billing subscription or trial row.
+      if (await hasManagerAccess(user.id)) {
+        setHasAccess(true);
+        return;
+      }
+
       // Check subscription first
       const hasSub = await hasActiveSubscription(user.id);
       if (hasSub) {

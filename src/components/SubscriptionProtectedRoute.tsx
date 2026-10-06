@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { hasActiveSubscription } from '../lib/subscriptionService';
 import { trialService } from '../lib/trialService';
-import { isManagerPlanUser } from '../lib/managerPlanService';
+import { hasManagerAccess } from '../lib/managerPlanService';
 import { Loader } from 'lucide-react';
 
 interface SubscriptionProtectedRouteProps {
@@ -31,8 +31,9 @@ export default function SubscriptionProtectedRoute({ children }: SubscriptionPro
     }
 
     try {
-      // Check if user is Manager plan (always has access)
-      if (isManagerPlanUser(user.email)) {
+      // Founder/manager/admin accounts always have dashboard access.
+      // Read the role from Supabase instead of relying on an email cache.
+      if (await hasManagerAccess(user.id)) {
         setHasAccess(true);
         setIsLoading(false);
         return;

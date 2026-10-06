@@ -34,6 +34,32 @@ export function isManagerPlanUser(email: string | undefined | null): boolean {
 
 export const hasManagerPlanFeatures = isManagerPlanUser;
 
+/**
+ * Read the user's current role directly from Supabase. This is the
+ * authoritative async check used by route guards and navigation.
+ */
+export async function hasManagerAccess(userId: string): Promise<boolean> {
+    if (!userId) return false;
+
+    const { data, error } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', userId)
+        .maybeSingle();
+
+    if (error || !data) return false;
+
+    const hasAccess = data.role === 'manager' || data.role === 'admin';
+    const email = normalize((await supabase.auth.getUser()).data.user?.email);
+    if (email) {
+        checkedEmailCache.add(email);
+        if (hasAccess) managerEmailCache.add(email);
+        else managerEmailCache.delete(email);
+    }
+
+    return hasAccess;
+}
+
 export function getManagerPlanName(): string {
     return 'Manager';
 }

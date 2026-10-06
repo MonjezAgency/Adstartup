@@ -101,8 +101,10 @@ function AppContent() {
 }
 
 function App() {
-  // Use the same base path from Vite config
-  const basename = import.meta.env.BASE_URL || '/TheAdAgent';
+  // Vercel serves this Vite app from the domain root. Never fall back to a
+  // repository-specific basename, otherwise direct /dashboard URLs resolve
+  // to the wrong client-side route in production.
+  const basename = import.meta.env.BASE_URL || '/';
 
   return (
     <QueryClientProvider client={queryClient}>

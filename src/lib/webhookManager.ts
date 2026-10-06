@@ -290,19 +290,6 @@ export async function triggerEntityActionWebhook(
     throw err;
   }
 }
-  userId: string,
-  adName: string,
-  userEmail: string
-): Promise<string> {
-  try {
-    const payload = await buildRemoveAdPayload(userId, adName, userEmail);
-    const webhookId = await sendWebhookWithRetry(userId, 'remove_ad', payload);
-    return webhookId;
-  } catch (err) {
-    console.error('[Webhooks] Error triggering remove ad webhook:', err);
-    throw err;
-  }
-}
 
 export async function getRecentWebhooks(userId: string, limit: number = 10): Promise<Webhook[]> {
   try {
